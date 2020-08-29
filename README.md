@@ -9,6 +9,7 @@ in a way that makes easier to to identify which one need.
 * multiple Gerrit servers
 * change number and topics are clickable links
 * draft/dnm/wip changes are grayed out
+* automatically abandon review w/ score less than 1 and over 90 days old
 
 ## Wishlist
 

@@ -1,14 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 from blessings import Terminal
-from datetime import timedelta
 import click
 import datetime
 import json
 import logging
 import netrc
 import os
-import pytz
 import re
 import requests
 import sys
@@ -54,9 +52,11 @@ class Label(object):
         if data.get("optional", False):
             self.value = 1
         for unknown in set(data.keys()) - set(
-            ["blocking", "approved", "recommended", "disliked", "rejected", "value", "optional"]
+            ["blocking", "approved", "recommended",
+                "disliked", "rejected", "value", "optional"]
         ):
-            LOG.warning("Found unknown label field %s: %s" % (unknown, data.get(unknown)))
+            LOG.warning("Found unknown label field %s: %s" %
+                        (unknown, data.get(unknown)))
 
     def __repr__(self):
         msg = self.abbr + ":" + str(self.value)
@@ -97,7 +97,8 @@ class GerritServer(object):
         self.__session.auth = self.auth_class(token[0], token[2])
 
         self.__session.headers.update(
-            {"Content-Type": "application/json;charset=UTF-8", "Access-Control-Allow-Origin": "*"}
+            {"Content-Type": "application/json;charset=UTF-8",
+                "Access-Control-Allow-Origin": "*"}
         )
 
     def query(self, query=None):
@@ -108,7 +109,6 @@ class GerritServer(object):
         # %20NOT%20label:Code-Review>=0,self
         query = self.url + query_map[query] + "&o=LABELS&o=COMMIT_FOOTERS"
         return parsed(self.__session.get(query))
-
 
 
 class CR:
@@ -124,7 +124,8 @@ class CR:
         else:
             self.topic = data["topic"]
 
-        self.is_wip = re.compile("^\\[?(WIP|DNM|POC).+$", re.IGNORECASE).match(self.subject)
+        self.is_wip = re.compile(
+            "^\\[?(WIP|DNM|POC).+$", re.IGNORECASE).match(self.subject)
         self.url = "{}#/c/{}/".format(self.server.url, self.number)
 
         self.labels = {}
@@ -170,8 +171,10 @@ class CR:
 
     def __str__(self):
 
-        prefix = "%s%s" % (u"⭐" if self.starred else "  ", " " * (8 - len(str(self.number))))
-        msg = term.on_color(self.background()) + prefix + link(self.url, self.number) + term.normal
+        prefix = "%s%s" % (u"⭐" if self.starred else "  ",
+                           " " * (8 - len(str(self.number))))
+        msg = term.on_color(self.background()) + prefix + \
+            link(self.url, self.number) + term.normal
 
         m = ""
         if self.is_wip:
@@ -271,7 +274,6 @@ def main(debug, incoming, server):
     formatter = logging.Formatter("%(levelname)-8s %(message)s")
     handler.setFormatter(formatter)
     LOG.addHandler(handler)
-    #time_now = datetime.datetime.now(pytz.UTC)
     time_now = datetime.datetime.now()
 
     if sys.version_info.major < 3:
@@ -295,16 +297,17 @@ def main(debug, incoming, server):
         # msg = term.on_color(cr.background()) + str(cr)
         print(cr)
         if cr.score < 1:
-          cr_last_updated = cr.data['updated']
-          time_cr_updated = datetime.datetime.strptime(cr_last_updated[:-3], '%Y-%m-%d %H:%M:%S.%f')
-          cr_age = time_now - time_cr_updated
-          if int(cr_age.days) > 90 and query != "incoming":
-            # shell out here because the using the api to abandon seems to be forbidden
-            print("this review will now be abandoned")
-            cr_abandon = "ssh -p 29418 ' + self.cfg['servers'][0]['username']"
-            + "@review.opendev.org gerrit review "
-            + "str(cr.number)" + ",1 --abandon --message too_old"
-            os.system(cr_abandon)
+            cr_last_updated = cr.data['updated']
+            time_cr_updated = datetime.datetime.strptime(
+                cr_last_updated[:-3], '%Y-%m-%d %H:%M:%S.%f')
+            cr_age = time_now - time_cr_updated
+            if int(cr_age.days) > 90 and query != "incoming":
+                # shell out here because the using the api to abandon seems to be forbidden
+                print("this review will now be abandoned")
+                cr_abandon = "ssh -p 29418 ' + self.cfg['servers'][0]['username']"
+                + "@review.opendev.org gerrit review "
+                + "str(cr.number)" + ",1 --abandon --message too_old"
+                os.system(cr_abandon)
         LOG.debug(cr.data)
         cnt += 1
     print(term.bright_black("-- %d changes listed" % cnt))

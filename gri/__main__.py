@@ -29,6 +29,7 @@ KNOWN_SERVERS = {
 term = Terminal()
 
 LOG = logging.getLogger(__name__)
+time_now = datetime.datetime.now()
 
 
 def link(url, name):
@@ -205,6 +206,14 @@ class CR:
             if l.value:
                 # we print only labels without 0 value
                 m += " %s" % l
+        time_cr_updated = datetime.datetime.strptime(
+        self.updated[:-3], '%Y-%m-%d %H:%M:%S.%f')
+
+        age = str((time_now - time_cr_updated).days)
+        if int(age) > 60:
+          m += term.yellow(" " + age + "_days_old")
+        else:
+          m += " " + age + "_days_old"
 
         msg += m + " %s" % self.score
         return msg
@@ -278,7 +287,6 @@ def main(debug, incoming, server, abandon, abandon_age):
     formatter = logging.Formatter("%(levelname)-8s %(message)s")
     handler.setFormatter(formatter)
     LOG.addHandler(handler)
-    time_now = datetime.datetime.now()
 
     if sys.version_info.major < 3:
         reload(sys)  # noqa

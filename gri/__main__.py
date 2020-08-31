@@ -104,10 +104,11 @@ class GerritServer(object):
                 "Access-Control-Allow-Origin": "*"}
         )
 
-    def query(self, query=None):
+    def query(self, query=None, user=None):
         query_map = {
             None: r"a/changes/?q=owner:self%20status:open",
             "incoming": r"a/changes/?q=reviewer:self%20status:open",  # noqa
+            "user": r"a/changes/?q=owner:" + str(user) + "%20status:open",
         }
         query = self.url + query_map[query] + "&o=LABELS&o=COMMIT_FOOTERS"
         # %20NOT%20label:Code-Review>=0,self
@@ -240,7 +241,7 @@ class Config(dict):
 
 
 class GRI(object):
-    def __init__(self, query=None, server=None):
+    def __init__(self, query=None, server=None, user=None):
         self.cfg = Config()
         self.servers = []
         for s in self.cfg["servers"] if server is None else [self.cfg["servers"][int(server)]]:
@@ -254,7 +255,7 @@ class GRI(object):
         self.reviews = list()
         for server in self.servers:
 
-            for r in server.query(query=query):
+            for r in server.query(query=query, user=user):
                 cr = CR(r, server)
                 self.reviews.append(cr)
 
@@ -282,8 +283,8 @@ def parsed(result):
 @click.option("--incoming", "-i", default=False, help="Incoming reviews (not mine)", is_flag=True)
 @click.option("--server", "-s", default=None, help="[0,1,2] key in list of servers, Query a single server instead of all")
 @click.option("--abandon_age", "-z", default=90, help="default=90, allow the abandon for reviews older than $abandon_age days")
-def main(debug, incoming, server, abandon, abandon_age, force_abandon):
-    query = None
+@click.option("--user", "-u", default=None, help="if not self, pick a user to find patches")
+def main(debug, incoming, server, abandon, abandon_age, force_abandon, user):
     handler = logging.StreamHandler()
     formatter = logging.Formatter("%(levelname)-8s %(message)s")
     handler.setFormatter(formatter)
@@ -294,6 +295,15 @@ def main(debug, incoming, server, abandon, abandon_age, force_abandon):
     # if force_abandon is true, set the score to any cr under a score of 300
     if force_abandon:
         abandon_score = 300
+
+    # if --user is used set the query key to user
+    # set the map to user
+    if user:
+        query="user"
+    elif incoming:
+        query = "incoming"
+    else:
+        query=None
 
     if sys.version_info.major < 3:
         reload(sys)  # noqa
@@ -307,9 +317,10 @@ def main(debug, incoming, server, abandon, abandon_age, force_abandon):
     #     msg += term.on_color(g) + "A"
     # print(msg)
     # # return
-    if incoming:
-        query = "incoming"
-    gri = GRI(query=query, server=server)
+    if user:
+        gri = GRI(query="user", server=server, user=user)
+    else:
+        gri = GRI(query=query, server=server)
     print(gri.header())
     cnt = 0
     for cr in sorted(gri.reviews):

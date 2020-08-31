@@ -267,10 +267,12 @@ def parsed(result):
 
 
 @click.command()
+@click.option("--abandon", "-a", default=False, help="abandon reviews with a score lower than 1 and greater than $abandon_age (default=90) days old", is_flag=True)
 @click.option("--debug", "-d", default=False, help="Debug mode", is_flag=True)
 @click.option("--incoming", "-i", default=False, help="Incoming reviews (not mine)", is_flag=True)
 @click.option("--server", "-s", default=None, help="[0,1,2] key in list of servers, Query a single server instead of all")
-def main(debug, incoming, server):
+@click.option("--abandon_age", "-z", default=90, help="default=90, allow the abandon for reviews older than $abandon_age days")
+def main(debug, incoming, server, abandon, abandon_age):
     query = None
     handler = logging.StreamHandler()
     formatter = logging.Formatter("%(levelname)-8s %(message)s")
@@ -298,12 +300,12 @@ def main(debug, incoming, server):
     for cr in sorted(gri.reviews):
         # msg = term.on_color(cr.background()) + str(cr)
         print(cr)
-        if cr.score < 1:
+        if cr.score < 1 and abandon:
             cr_last_updated = cr.data['updated']
             time_cr_updated = datetime.datetime.strptime(
                 cr_last_updated[:-3], '%Y-%m-%d %H:%M:%S.%f')
             cr_age = time_now - time_cr_updated
-            if int(cr_age.days) > 90 and query != "incoming":
+            if int(cr_age.days) > int(abandon_age) and query != "incoming":
                 # shell out here because the using the api to abandon seems to be forbidden
                 print("this review will now be abandoned")
                 hostname = urlparse(cr.url).hostname

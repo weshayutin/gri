@@ -277,16 +277,23 @@ def parsed(result):
 
 @click.command()
 @click.option("--abandon", "-a", default=False, help="abandon reviews with a score lower than 1 and greater than $abandon_age (default=90) days old", is_flag=True)
+@click.option("--force_abandon", "-x", default=False, help="abandon regardless of the score, only use the age", is_flag=True)
 @click.option("--debug", "-d", default=False, help="Debug mode", is_flag=True)
 @click.option("--incoming", "-i", default=False, help="Incoming reviews (not mine)", is_flag=True)
 @click.option("--server", "-s", default=None, help="[0,1,2] key in list of servers, Query a single server instead of all")
 @click.option("--abandon_age", "-z", default=90, help="default=90, allow the abandon for reviews older than $abandon_age days")
-def main(debug, incoming, server, abandon, abandon_age):
+def main(debug, incoming, server, abandon, abandon_age, force_abandon):
     query = None
     handler = logging.StreamHandler()
     formatter = logging.Formatter("%(levelname)-8s %(message)s")
     handler.setFormatter(formatter)
     LOG.addHandler(handler)
+    # the score a cr must have by default in order to be abandoned
+    abandon_score = 1
+
+    # if force_abandon is true, set the score to any cr under a score of 300
+    if force_abandon:
+        abandon_score = 300
 
     if sys.version_info.major < 3:
         reload(sys)  # noqa
@@ -308,7 +315,7 @@ def main(debug, incoming, server, abandon, abandon_age):
     for cr in sorted(gri.reviews):
         # msg = term.on_color(cr.background()) + str(cr)
         print(cr)
-        if cr.score < 1 and abandon:
+        if cr.score < abandon_score and abandon:
             cr_last_updated = cr.data['updated']
             time_cr_updated = datetime.datetime.strptime(
                 cr_last_updated[:-3], '%Y-%m-%d %H:%M:%S.%f')

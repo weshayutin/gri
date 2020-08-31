@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 from blessings import Terminal
+from urllib.parse import urlparse
 import click
 import datetime
 import json
@@ -21,6 +22,7 @@ from requests.auth import HTTPBasicAuth, HTTPDigestAuth
 # Used only to force outdated Digest auth for servers not using standard auth
 KNOWN_SERVERS = {
     "https://review.opendev.org/": {"auth": HTTPDigestAuth},
+    "https://review.rdoproject.org/": {"auth": HTTPDigestAuth},
     "https://code.engineering.redhat.com/gerrit/": {"auth": HTTPDigestAuth},
     "verify": False,
 }
@@ -106,8 +108,8 @@ class GerritServer(object):
             None: r"a/changes/?q=owner:self%20status:open",
             "incoming": r"a/changes/?q=reviewer:self%20status:open",  # noqa
         }
-        # %20NOT%20label:Code-Review>=0,self
         query = self.url + query_map[query] + "&o=LABELS&o=COMMIT_FOOTERS"
+        # %20NOT%20label:Code-Review>=0,self
         return parsed(self.__session.get(query))
 
 
@@ -304,9 +306,10 @@ def main(debug, incoming, server):
             if int(cr_age.days) > 90 and query != "incoming":
                 # shell out here because the using the api to abandon seems to be forbidden
                 print("this review will now be abandoned")
-                cr_abandon = "ssh -p 29418 ' + self.cfg['servers'][0]['username']"
-                + "@review.opendev.org gerrit review "
-                + "str(cr.number)" + ",1 --abandon --message too_old"
+                hostname = urlparse(cr.url).hostname
+                cr_abandon = ("ssh -p 29418 " + gri.cfg['servers'][0]['username']
+                + "@" + hostname + " gerrit review "
+                + str(cr.number) + ",1 --abandon --message too_old")
                 os.system(cr_abandon)
         LOG.debug(cr.data)
         cnt += 1

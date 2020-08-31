@@ -1,0 +1,6 @@
+machine review.opendev.org
+login joe
+password foo
+machine review.rdoproject.org
+login joe
+password foo

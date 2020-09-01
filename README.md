@@ -57,3 +57,10 @@ better acronym expansions.
 [1]: https://github.com/openstack/gertty/tree/master/examples
 [2]: https://marketplace.visualstudio.com/items?itemName=Gruntfuggly.gerrit-view
 [3]: https://docs.openstack.org/infra/git-review/
+
+## Gerrit Servers with self signed certs
+1. Find the cert in question, rpm -ql foo-internal-cert-install
+2. sudo cp /etc/pki/tls/certs/newca.crt /usr/share/pki/ca-trust-source/anchors
+3. update-ca-trust trust force-enable
+4. update-ca-trust extract
+5. Ensure you have the right url.. It could be https://hostname/gerrit or something like that

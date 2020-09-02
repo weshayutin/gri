@@ -25,7 +25,21 @@ in a way that makes easier to to identify which one need.
 
 ## Installing
 ```
-pip install gri
+git clone https://github.com/weshayutin/gri.git
+cd gri
+sudo python3 setup.py install
+
+or in a local virtual environment
+
+mkdir ~/virtualenv/python3
+virtualenv -p /usr/bin/python3 ~/virtualenv/python3/
+source ~/virtualenv/python3/bin/activate
+git clone https://github.com/weshayutin/gri.git
+cd gri
+python3 setup.py install
+
+now execute:
+gri --help
 ```
 
 ## Usage

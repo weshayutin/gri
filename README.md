@@ -3,7 +3,7 @@
 `gri`[¹](#f11) is a CLI tool that will list your open git reviews from multiple servers
 in a way that makes easier to to identify which one need.
 
-![screenshot](https://repository-images.githubusercontent.com/205845628/4a76fd00-ce23-11e9-8d12-162184df41c5)
+![screenshot](https://github.com/weshayutin/gri/blob/master/Screenshot%20from%202020-09-03%2010-39-13.png)
 
 ## Features
 * multiple Gerrit servers

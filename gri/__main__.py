@@ -109,6 +109,7 @@ class GerritServer(object):
             None: r"a/changes/?q=owner:self%20status:open",
             "incoming": r"a/changes/?q=reviewer:self%20status:open",  # noqa
             "user": r"a/changes/?q=owner:" + str(user) + "%20status:open",
+            "merged_today": r"a/changes/?q=status:merged%20tripleo%20age:0days",
         }
         query = self.url + query_map[query] + "&o=LABELS&o=COMMIT_FOOTERS"
         # %20NOT%20label:Code-Review>=0,self
@@ -281,10 +282,11 @@ def parsed(result):
 @click.option("--force_abandon", "-x", default=False, help="abandon regardless of the score, only use the age", is_flag=True)
 @click.option("--debug", "-d", default=False, help="Debug mode", is_flag=True)
 @click.option("--incoming", "-i", default=False, help="Incoming reviews (not mine)", is_flag=True)
+@click.option("--merged_today", "-m", default=False, help="merged today in tripleo", is_flag=True)
 @click.option("--server", "-s", default=None, help="[0,1,2] key in list of servers, Query a single server instead of all")
 @click.option("--abandon_age", "-z", default=90, help="default=90, allow the abandon for reviews older than $abandon_age days")
 @click.option("--user", "-u", default=None, help="if not self, pick a user to find patches")
-def main(debug, incoming, server, abandon, abandon_age, force_abandon, user):
+def main(debug, incoming, server, abandon, abandon_age, force_abandon, user, merged_today):
     handler = logging.StreamHandler()
     formatter = logging.Formatter("%(levelname)-8s %(message)s")
     handler.setFormatter(formatter)
@@ -302,6 +304,8 @@ def main(debug, incoming, server, abandon, abandon_age, force_abandon, user):
         query="user"
     elif incoming:
         query = "incoming"
+    elif merged_today:
+        query = "merged_today"
     else:
         query=None
 
@@ -325,12 +329,17 @@ def main(debug, incoming, server, abandon, abandon_age, force_abandon, user):
     cnt = 0
     for cr in sorted(gri.reviews):
         # msg = term.on_color(cr.background()) + str(cr)
+        cr_last_updated = cr.data['updated']
+        time_cr_updated = datetime.datetime.strptime(
+        cr_last_updated[:-3], '%Y-%m-%d %H:%M:%S.%f')
+        cr_age = time_now - time_cr_updated
+
+        if merged_today and int(cr_age.days) > 0:
+            cnt -= 1
+            pass
+
         print(cr)
         if cr.score < abandon_score and abandon:
-            cr_last_updated = cr.data['updated']
-            time_cr_updated = datetime.datetime.strptime(
-                cr_last_updated[:-3], '%Y-%m-%d %H:%M:%S.%f')
-            cr_age = time_now - time_cr_updated
             if int(cr_age.days) > int(abandon_age) and query != "incoming":
                 # shell out here because the using the api to abandon seems to be forbidden
                 print("this review will now be abandoned")

@@ -335,7 +335,7 @@ def main(debug, incoming, server, abandon, abandon_age, force_abandon, user):
                 # shell out here because the using the api to abandon seems to be forbidden
                 print("this review will now be abandoned")
                 hostname = urlparse(cr.url).hostname
-                cr_abandon = ("ssh -p 29418 " + gri.cfg['servers'][0]['username']
+                cr_abandon = ("ssh -p 29418 " + gri.cfg['servers'][int(server)]['username']
                 + "@" + hostname + " gerrit review "
                 + str(cr.number) + ",1 --abandon --message too_old")
                 os.system(cr_abandon)

@@ -336,8 +336,7 @@ def main(debug, incoming, server, abandon, abandon_age, force_abandon, user, mer
 
         if merged_today and int(cr_age.days) > 0:
             cnt -= 1
-            pass
-
+            continue
         print(cr)
         if cr.score < abandon_score and abandon:
             if int(cr_age.days) > int(abandon_age) and query != "incoming":

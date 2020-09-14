@@ -286,7 +286,8 @@ def parsed(result):
 @click.option("--server", "-s", default=None, help="[0,1,2] key in list of servers, Query a single server instead of all")
 @click.option("--abandon_age", "-z", default=90, help="default=90, allow the abandon for reviews older than $abandon_age days")
 @click.option("--user", "-u", default=None, help="if not self, pick a user to find patches")
-def main(debug, incoming, server, abandon, abandon_age, force_abandon, user, merged_today):
+@click.option("--print_csv", "-c", default=False, is_flag=True, help="print limited data in csv format for reports")
+def main(debug, incoming, server, abandon, abandon_age, force_abandon, user, merged_today, print_csv=False):
     handler = logging.StreamHandler()
     formatter = logging.Formatter("%(levelname)-8s %(message)s")
     handler.setFormatter(formatter)
@@ -333,11 +334,19 @@ def main(debug, incoming, server, abandon, abandon_age, force_abandon, user, mer
         time_cr_updated = datetime.datetime.strptime(
         cr_last_updated[:-3], '%Y-%m-%d %H:%M:%S.%f')
         cr_age = time_now - time_cr_updated
+        cr_updated_epoch = time_cr_updated.strftime('%s')
 
         if merged_today and int(cr_age.days) > 0:
             cnt -= 1
             continue
-        print(cr)
+        if not print_csv:
+            print(cr)
+        else:
+            print("merged,'{}','{}','{}','{}' '{}',{} {}".format(
+                cr.project, cr.branch,
+                cr.url, cr.subject,
+                cr.url, cr_updated_epoch,
+                cr_updated_epoch))
         if cr.score < abandon_score and abandon:
             if int(cr_age.days) > int(abandon_age) and query != "incoming":
                 # shell out here because the using the api to abandon seems to be forbidden

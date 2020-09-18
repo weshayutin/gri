@@ -19,6 +19,15 @@ except ImportError:
 import yaml
 from requests.auth import HTTPBasicAuth, HTTPDigestAuth
 
+# ABANDON_MSG = ("\"This review is > 90 days without comment or update."
+#               " We are abandoning this for now. Feel free to reactivate the review"
+#               " by pressing the restore button and contacting the reviewers and ensure"
+#               " you address their concerns. For more details check policy"
+#               " https://specs.openstack.org/openstack/tripleo-specs/specs/policy/patch-abandonment.html\"")
+
+ABANDON_MSG = (
+    "https://specs.openstack.org/openstack/tripleo-specs/specs/policy/patch-abandonment.html")
+
 # Used only to force outdated Digest auth for servers not using standard auth
 KNOWN_SERVERS = {
     "https://review.opendev.org/": {"auth": HTTPDigestAuth},
@@ -104,12 +113,13 @@ class GerritServer(object):
                 "Access-Control-Allow-Origin": "*"}
         )
 
-    def query(self, query=None, user=None):
+    def query(self, query=None, user=None, project=None):
         query_map = {
             None: r"a/changes/?q=owner:self%20status:open",
             "incoming": r"a/changes/?q=reviewer:self%20status:open",  # noqa
             "user": r"a/changes/?q=owner:" + str(user) + "%20status:open",
             "merged_today": r"a/changes/?q=status:merged%20tripleo%20age:0days",
+            "project": r"a/changes/?q=project:" + str(project) + "%20status:open",
         }
         query = self.url + query_map[query] + "&o=LABELS&o=COMMIT_FOOTERS"
         # %20NOT%20label:Code-Review>=0,self
@@ -209,13 +219,13 @@ class CR:
                 # we print only labels without 0 value
                 m += " %s" % l
         time_cr_updated = datetime.datetime.strptime(
-        self.updated[:-3], '%Y-%m-%d %H:%M:%S.%f')
+            self.updated[:-3], '%Y-%m-%d %H:%M:%S.%f')
 
         age = str((time_now - time_cr_updated).days)
         if int(age) > 60:
-          m += term.yellow(" " + age + "_days_old")
+            m += term.yellow(" " + age + "_days_old")
         else:
-          m += " " + age + "_days_old"
+            m += " " + age + "_days_old"
 
         msg += m + " %s" % self.score
         return msg
@@ -242,7 +252,7 @@ class Config(dict):
 
 
 class GRI(object):
-    def __init__(self, query=None, server=None, user=None):
+    def __init__(self, query=None, server=None, user=None, project=None):
         self.cfg = Config()
         self.servers = []
         for s in self.cfg["servers"] if server is None else [self.cfg["servers"][int(server)]]:
@@ -256,7 +266,7 @@ class GRI(object):
         self.reviews = list()
         for server in self.servers:
 
-            for r in server.query(query=query, user=user):
+            for r in server.query(query=query, user=user, project=project):
                 cr = CR(r, server)
                 self.reviews.append(cr)
 
@@ -286,8 +296,9 @@ def parsed(result):
 @click.option("--server", "-s", default=None, help="[0,1,2] key in list of servers, Query a single server instead of all")
 @click.option("--abandon_age", "-z", default=90, help="default=90, allow the abandon for reviews older than $abandon_age days")
 @click.option("--user", "-u", default=None, help="if not self, pick a user to find patches")
+@click.option("--project", "-p", default=None, type=str, help="specify a particular gerrit project to query")
 @click.option("--print_csv", "-c", default=False, is_flag=True, help="print limited data in csv format for reports")
-def main(debug, incoming, server, abandon, abandon_age, force_abandon, user, merged_today, print_csv=False):
+def main(debug, incoming, server, abandon, abandon_age, force_abandon, user, project, merged_today, print_csv=False):
     handler = logging.StreamHandler()
     formatter = logging.Formatter("%(levelname)-8s %(message)s")
     handler.setFormatter(formatter)
@@ -302,14 +313,15 @@ def main(debug, incoming, server, abandon, abandon_age, force_abandon, user, mer
     # if --user is used set the query key to user
     # set the map to user
     if user:
-        query="user"
+        query = "user"
     elif incoming:
         query = "incoming"
     elif merged_today:
         query = "merged_today"
+    elif project:
+        query = "project"
     else:
-        query=None
-
+        query = None
     if sys.version_info.major < 3:
         reload(sys)  # noqa
         sys.setdefaultencoding("utf8")
@@ -324,6 +336,8 @@ def main(debug, incoming, server, abandon, abandon_age, force_abandon, user, mer
     # # return
     if user:
         gri = GRI(query="user", server=server, user=user)
+    elif project:
+        gri = GRI(query="project", server=server, project=project)
     else:
         gri = GRI(query=query, server=server)
     print(gri.header())
@@ -332,7 +346,7 @@ def main(debug, incoming, server, abandon, abandon_age, force_abandon, user, mer
         # msg = term.on_color(cr.background()) + str(cr)
         cr_last_updated = cr.data['updated']
         time_cr_updated = datetime.datetime.strptime(
-        cr_last_updated[:-3], '%Y-%m-%d %H:%M:%S.%f')
+            cr_last_updated[:-3], '%Y-%m-%d %H:%M:%S.%f')
         cr_age = time_now - time_cr_updated
         cr_updated_epoch = time_cr_updated.strftime('%s')
 
@@ -353,8 +367,9 @@ def main(debug, incoming, server, abandon, abandon_age, force_abandon, user, mer
                 print("this review will now be abandoned")
                 hostname = urlparse(cr.url).hostname
                 cr_abandon = ("ssh -p 29418 " + gri.cfg['servers'][int(server)]['username']
-                + "@" + hostname + " gerrit review "
-                + str(cr.number) + ",1 --abandon --message too_old")
+                              + "@" + hostname + " gerrit review "
+                              + str(cr.number) + ",1 --abandon --message " + ABANDON_MSG)
+                print(cr_abandon)
                 os.system(cr_abandon)
         LOG.debug(cr.data)
         cnt += 1
